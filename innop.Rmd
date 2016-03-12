@@ -1,0 +1,81 @@
+---
+title: "Identifying Cross-Selling Opportunities"
+author: "Shubhankar Gupta"
+date: "March 8, 2016"
+output: html_document
+---
+I have used a Market Basket Analysis in R for the required solution.
+
+Reading the data into R.
+```{r, cache=TRUE}
+product = read.table("ProductCategoryData.txt", header = T)
+user = read.table("UserProfileData.txt", sep = "\t", header = T)
+click = read.table("ClickStream.txt", sep = "\t", header=T)
+```
+
+State/Region of Portugal have been recorded as numeric values. Therefore I have removed them for easier calculation. Also futher cleaning the data.
+```{r, cache=TRUE}
+click = click[,-(8:16)]
+x = which(click$Region.State=="10")
+b = which(click$Region.State=="11")
+c = which(click$Region.State=="47")
+d = which(click$Region.State=="")
+click$Region.State = as.character(click$Region.State)
+click = click[-c(x,b,c,d),]
+click$Region.State = as.factor(click$Region.State)
+click$Country = as.character(click$Country)
+click$Country = as.factor(click$Country)
+click$City = as.character(click$City)
+click$City = as.factor(click$City)
+```
+
+We merge the data of product category and click stream by URL, to access the click on a particular product category.
+```{r}
+a1 = merge(click, product, by= "URL")
+```
+
+Now we merge the data of a1 and user profile by USER ID, to access the user who is clicking for the product category.
+```{r}
+a2 = merge(a1, user, by = "User.ID", all.x = T)
+```
+
+Market Basket Analysis is also called product association analysis.Association mining analysis mostly done based on an algorithm named "Apriori Algorithm".
+
+```{r}
+library(arules)
+```
+
+Now I converted the data frame into transaction class as per the requirements of **arules** package.
+```{r, cache=TRUE}
+a3 = a2[,-3]
+data = a3[,(1:2)]
+r = unique(data)
+head(r)
+spl = split(r$URL, r$User.ID)
+trans = as(spl, "transactions")
+df = data.frame(URL=levels(r$URL))
+df$URL =as.character(df$URL)
+level = merge(df,product, by="URL")
+```
+
+Using **support** for this transaction as 0.001 and **confidence** as 0.75 to get the association rules. As we will decrease confidence number of association rules will increase.
+```{r}
+rules = apriori(trans, parameter = list(supp=0.001, conf=0.75))
+inspect(rules)
+```
+
+Where these numbers correspond to a product category.
+```{r}
+level
+```
+
+Here are some Plots of the Rules we Obtained from the analysis.
+```{r}
+library(arulesViz)
+plot(rules)
+plot(rules, method="graph", control=list(type="items"))
+plot(rules, method="paracoord", control=list(reorder=TRUE))
+
+```
+
+
